@@ -177,9 +177,9 @@ def test_payout_needs_a_named_human_and_cannot_be_replayed():
 
 def test_agent_only_files_tickets_and_never_approves():
     import inspect
+    import sys
 
-    import refund_agent.agent as agent_mod
-    src = inspect.getsource(agent_mod)
+    src = inspect.getsource(sys.modules[RefundAgent.__module__])
     assert ".approve(" not in src and "ReviewQueue" not in src
     r = RefundAgent("v2").handle("I am u-1001, I would like a refund for the trail backpack.")
     assert r.tool_names()[-1] == "process_return_request"
