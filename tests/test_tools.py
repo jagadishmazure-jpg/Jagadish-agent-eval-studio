@@ -1,9 +1,11 @@
 """Tests for the four refund tools."""
 
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from refund_agent import tools, data
+from refund_agent import data, tools
 
 
 def test_get_order_details_known_user():

@@ -21,8 +21,10 @@ Metrics:
  7. answer_correctness  -- does the conclusion match (phrase-level, not exact)?
 """
 
+import inspect
 import re
 import string
+from collections import Counter
 from dataclasses import dataclass
 
 
@@ -41,6 +43,55 @@ def _normalise(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+_NEGATORS = {"no", "not", "never", "without", "cannot", "cant", "isnt",
+             "wasnt", "wont", "didnt", "doesnt", "nor"}
+
+
+def _phrase_hit(phrase, answer):
+    """True when ``phrase`` occurs in ``answer`` as whole words (a trailing
+    plural "s" is allowed) and is not negated by one of the two words just
+    before it. Both strings must already be normalised.
+
+    Substring matching was gameable: "45.00" matched "$145.00", "valid
+    username" matched "invalid username", and "no refund ticket" matched
+    "refund ticket".
+    """
+    if not phrase:
+        return False
+    pattern = r"(?<!\w)" + re.escape(phrase) + r"s?(?!\w)"
+    phrase_is_negative = phrase.split()[0] in _NEGATORS
+    for m in re.finditer(pattern, answer):
+        before = answer[:m.start()].split()[-2:]
+        if phrase_is_negative or not any(w in _NEGATORS for w in before):
+            return True
+    return False
+
+
+def _conclusion_score(response, case):
+    """Shared phrase scoring for task_completion and answer_correctness.
+
+    Returns (score, reason). An empty answer scores 0. Any forbidden phrase
+    (the opposite conclusion, e.g. "no refund will be issued" on a refund
+    case) scores 0, so an answer cannot pass by stuffing every possible
+    conclusion into one reply.
+    """
+    answer = _normalise(response.answer)
+    if not answer:
+        return 0.0, "empty answer"
+    forbidden = [p for p in getattr(case, "forbidden_conclusion", ())
+                 if _phrase_hit(_normalise(p), answer)]
+    if forbidden:
+        return 0.0, "contradicting conclusion present: %s" % ", ".join(forbidden)
+    expected = case.expected_conclusion
+    if not expected:
+        return 1.0, "no expected phrases; answer is non-empty"
+    missing = [p for p in expected if not _phrase_hit(_normalise(p), answer)]
+    score = (len(expected) - len(missing)) / len(expected)
+    reason = ("all %d expected phrases present" % len(expected)) if not missing \
+        else "missing expected phrases: %s" % ", ".join(missing)
+    return score, reason
+
+
 # The sensible tool order for a refund turn. Steps may be skipped when the
 # scenario makes them pointless (e.g. no eligibility check needed when the
 # user is unknown), but they must never run out of order.
@@ -55,8 +106,9 @@ def _check_threshold(score, threshold):
 def task_completion(response, case, threshold=0.8, judge=None):
     """Did the agent reach the expected conclusion?
 
-    Deterministic check: every expected phrase must appear (normalised) in
-    the final answer. ``judge`` is an optional LLM-seam callable
+    Deterministic check: every expected phrase must appear (normalised,
+    whole words, not negated) in the final answer, no contradicting phrase
+    may appear, and ``conversation_continue`` must match the case. ``judge`` is an optional LLM-seam callable
     ``judge(answer, expected) -> (score, reason)``; when given it is used
     instead of the phrase check.
     """
@@ -64,13 +116,15 @@ def task_completion(response, case, threshold=0.8, judge=None):
         score, reason = judge(response.answer, case.expected_conclusion)
         return MetricResult("task_completion", float(score),
                             _check_threshold(score, threshold), reason)
-    answer = _normalise(response.answer)
-    hits = [p for p in case.expected_conclusion if _normalise(p) in answer]
-    score = len(hits) / len(case.expected_conclusion) \
-        if case.expected_conclusion else 1.0
-    missing = [p for p in case.expected_conclusion if _normalise(p) not in answer]
-    reason = ("all %d expected phrases present" % len(hits)) if not missing \
-        else "missing expected phrases: %s" % ", ".join(missing)
+    score, reason = _conclusion_score(response, case)
+    # Completing the task also means leaving the conversation in the right
+    # state: ending it when the customer still has to reply (or the reverse)
+    # is a failed turn even when the wording is right.
+    want = getattr(case, "expect_continue", None)
+    if want is not None and bool(response.conversation_continue) != bool(want):
+        score = 0.0
+        reason = "conversation_continue=%s but the case expects %s" % (
+            response.conversation_continue, want)
     return MetricResult("task_completion", score,
                         _check_threshold(score, threshold), reason)
 
@@ -93,9 +147,17 @@ def step_efficiency(response, case, threshold=0.8):
                             _check_threshold(0.0, threshold),
                             "no tools called but %d expected"
                             % len(case.expected_tools))
-    expected_set = set(case.expected_tools)
-    necessary = [t for t in actual if t in expected_set]
-    unnecessary = [t for t in actual if t not in expected_set]
+    # Each expected tool is needed as many times as it is listed; repeats
+    # beyond that cannot change the outcome (calling the same lookup six
+    # times used to score 1.0).
+    budget = Counter(case.expected_tools)
+    necessary, unnecessary = [], []
+    for t in actual:
+        if budget[t] > 0:
+            budget[t] -= 1
+            necessary.append(t)
+        else:
+            unnecessary.append(t)
     score = len(necessary) / len(actual)
     reason = ("%d/%d calls necessary" % (len(necessary), len(actual))) \
         if not unnecessary else \
@@ -112,6 +174,12 @@ def plan_adherence(response, case=None, threshold=0.8):
     eligibility) fail. A single-tool or empty trace trivially adheres.
     """
     actual = response.tool_names()
+    if not actual and case is not None and case.expected_tools:
+        # Doing nothing cannot "adhere" to a plan that needed tools.
+        return MetricResult("plan_adherence", 0.0,
+                            _check_threshold(0.0, threshold),
+                            "no tools executed although the case needs %d"
+                            % len(case.expected_tools))
     order_index = {name: i for i, name in enumerate(_SENSIBLE_ORDER)}
     # Unknown tools are ignored for ordering (flagged by step_efficiency).
     seq = [order_index[t] for t in actual if t in order_index]
@@ -151,6 +219,12 @@ def plan_quality(response, case, threshold=0.8, judge=None):
     if case.expected_tools and not actual:
         problems.append("no tools called although the case needs %d"
                         % len(case.expected_tools))
+    if "process_return_request" in actual and \
+            "process_return_request" not in case.expected_tools:
+        # The docstring promised this check; it was never implemented, so a
+        # ticket for a never-purchased item scored 1.0.
+        problems.append("ticket issued although nothing in this case is "
+                        "eligible for a refund")
     if "process_return_request" in actual and not any(
             k in _normalise(response.answer)
             for k in ("refund ticket", "ticket")):
@@ -164,8 +238,8 @@ def plan_quality(response, case, threshold=0.8, judge=None):
 
 def tool_correctness(response, case, threshold=0.8):
     """Right tools? F1 over the expected vs actual tool sets."""
-    expected = set(case.expected_tools)
-    actual = set(response.tool_names())
+    expected = Counter(case.expected_tools)
+    actual = Counter(response.tool_names())
     if not expected and not actual:
         return MetricResult("tool_correctness", 1.0, True,
                             "no tools expected and none called")
@@ -174,13 +248,14 @@ def tool_correctness(response, case, threshold=0.8):
                             _check_threshold(0.0, threshold),
                             "expected %s, got %s"
                             % (sorted(expected), sorted(actual)))
-    tp = len(expected & actual)
-    precision = tp / len(actual)
-    recall = tp / len(expected)
+    # Multiset F1: repeated calls count against precision.
+    tp = sum((expected & actual).values())
+    precision = tp / sum(actual.values())
+    recall = tp / sum(expected.values())
     f1 = 2 * precision * recall / (precision + recall) \
         if (precision + recall) else 0.0
-    missing = sorted(expected - actual)
-    extra = sorted(actual - expected)
+    missing = sorted((expected - actual).elements())
+    extra = sorted((actual - expected).elements())
     bits = []
     if missing:
         bits.append("missing: %s" % ", ".join(missing))
@@ -191,29 +266,73 @@ def tool_correctness(response, case, threshold=0.8):
                         _check_threshold(f1, threshold), reason)
 
 
-def argument_correctness(response, case, threshold=0.8):
-    """Right arguments? Per-tool match rate over expected arguments.
+_MISSING = object()
 
-    Only tools listed in case.expected_arguments are checked; a tool with
-    no expectations is skipped (it cannot be wrong here).
+
+def _same_value(got, want):
+    """Type-aware equality: True is not 1, 0 is not False, "45" is not 45.
+    Ints and floats compare numerically; lists and tuples compare
+    element by element."""
+    if isinstance(want, bool) or isinstance(got, bool):
+        return type(got) is type(want) and got == want
+    if isinstance(want, (int, float)) and isinstance(got, (int, float)):
+        return float(got) == float(want)
+    if isinstance(want, (list, tuple)) and isinstance(got, (list, tuple)):
+        return len(got) == len(want) and all(
+            _same_value(g, w) for g, w in zip(got, want))
+    if isinstance(want, dict) and isinstance(got, dict):
+        return got.keys() == want.keys() and all(
+            _same_value(got[k], want[k]) for k in want)
+    return type(got) is type(want) and got == want
+
+
+_INTERNAL_PARAMS = frozenset({"queue"})
+
+
+def _tool_parameters(tool):
+    """Parameter names of a real refund tool, or None for unknown tools."""
+    from refund_agent import tools as _tools
+    fn = getattr(_tools, tool, None)
+    if not callable(fn):
+        return None
+    # ``queue`` is a test/wiring hook, never something the agent may choose:
+    # an agent that routes its ticket to a queue it controls is a bypass.
+    return set(inspect.signature(fn).parameters) - _INTERNAL_PARAMS
+
+
+def argument_correctness(response, case, threshold=0.8):
+    """Right arguments? Match rate over expected arguments.
+
+    Every call of an expected tool is checked (not only the first), values
+    are compared type-aware, and an argument the real tool does not accept
+    (for example ``override_policy=True``) counts as a failed check.
+    Tools with no expectations are skipped. The metric passes only when every
+    check matches; the score is the match rate.
     """
     checks, matched, notes = 0, 0, []
-    by_tool = {}
+    calls = {}
     for step in response.trace:
-        by_tool.setdefault(step["tool"], step["arguments"])
+        calls.setdefault(step["tool"], []).append(step["arguments"] or {})
     for tool, expected_args in case.expected_arguments.items():
-        if tool not in by_tool:
+        if tool not in calls:
             notes.append("%s: not called" % tool)
             continue
-        actual_args = by_tool[tool] or {}
-        for arg, want in expected_args.items():
-            checks += 1
-            got = actual_args.get(arg, "<missing>")
-            if got == want:
-                matched += 1
-            else:
-                notes.append("%s.%s: expected %r, got %r"
-                             % (tool, arg, want, got))
+        allowed = _tool_parameters(tool)
+        for n, actual_args in enumerate(calls[tool], 1):
+            label = tool if len(calls[tool]) == 1 else "%s#%d" % (tool, n)
+            for arg, want in expected_args.items():
+                checks += 1
+                got = actual_args.get(arg, _MISSING)
+                if got is not _MISSING and _same_value(got, want):
+                    matched += 1
+                else:
+                    notes.append("%s.%s: expected %r, got %s"
+                                 % (label, arg, want, "<missing>"
+                                    if got is _MISSING else repr(got)))
+            if allowed is not None:
+                for arg in sorted(set(actual_args) - allowed):
+                    checks += 1
+                    notes.append("%s.%s: unexpected argument" % (label, arg))
     if checks == 0:
         if notes:
             return MetricResult("argument_correctness", 0.0,
@@ -225,8 +344,11 @@ def argument_correctness(response, case, threshold=0.8):
     reason = "%d/%d arguments match" % (matched, checks)
     if notes:
         reason += "; " + "; ".join(notes)
-    return MetricResult("argument_correctness", score,
-                        _check_threshold(score, threshold), reason)
+    # Strict pass: one wrong, missing or smuggled argument fails the metric
+    # (a string amount or an extra flag on the ticket tool is not "80% right").
+    # The score stays partial so the reason shows how far off the call was.
+    passed = matched == checks and _check_threshold(score, threshold)
+    return MetricResult("argument_correctness", score, passed, reason)
 
 
 def answer_correctness(response, case, threshold=0.8):
@@ -236,15 +358,7 @@ def answer_correctness(response, case, threshold=0.8):
     way as long as every expected conclusion phrase is present. This is
     the deterministic stand-in for a G-Eval style LLM judge.
     """
-    answer = _normalise(response.answer)
-    hits = [p for p in case.expected_conclusion if _normalise(p) in answer]
-    total = len(case.expected_conclusion)
-    score = len(hits) / total if total else 1.0
-    missing = [_normalise(p) for p in case.expected_conclusion
-               if _normalise(p) not in answer]
-    reason = "conclusion matches (%d/%d phrases)" % (len(hits), total) \
-        if not missing else \
-        "conclusion differs; missing: %s" % ", ".join(missing)
+    score, reason = _conclusion_score(response, case)
     return MetricResult("answer_correctness", score,
                         _check_threshold(score, threshold), reason)
 

@@ -28,7 +28,6 @@ import re
 
 from . import data, tools
 
-
 # LLM SEAM: an LLM agent would extract these with function calling; here a
 # small parser keeps behaviour deterministic.
 _USERNAME_RE = re.compile(r"\bu-(\d{1,6})\b", re.IGNORECASE)

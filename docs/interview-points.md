@@ -3,11 +3,14 @@
 ## The 30-second version
 
 "I built an end-to-end agent evaluation studio: a refund agent with
-four tools, a 10-case behaviour dataset, seven deterministic metrics,
+five tools, a 10-case behaviour dataset, seven deterministic metrics,
 and a measured improvement loop. The harness caught two flaws the
 happy-path tests missed — wrong error messaging for unknown users and
 a wasted tool call — and the before/after numbers prove both fixes with
-zero regressions. 87 tests, all offline, no API keys."
+zero regressions, case by case. A review then tried to game my own
+metrics and found that phrase matching and loose argument checks could
+be fooled; I hardened them and pinned each trick as a regression test.
+126 tests, all offline, no API keys."
 
 ## Questions this repo answers well
 
@@ -41,7 +44,21 @@ step_efficiency caught it. Both fixed, both measured.
 
 ## Numbers to quote (real runs)
 
-- 87 tests, 10 behaviour cases, 7 metrics
-- v1 → v2: step_efficiency 0.85 → 1.00, answer_correctness 0.90 → 1.00
-- Zero regressions across all seven metrics
-- Suite runs in ~0.2s, stdlib only
+- 126 tests, 10 behaviour cases, 7 metrics
+- v1 → v2: step_efficiency 0.85 (0.853) → 1.00, answer_correctness 0.90 → 1.00
+- Zero regressions across all seven metrics and all 10 cases, checked in CI
+  against `results/eval_summary.json`
+- Suite runs in about a second, stdlib only
+
+**"How do you stop an agent eval from being gamed?"**
+Attack it. On the original code an answer saying "No refund will be
+issued" scored 1.00 on a refund case, a string amount passed argument
+checks, and three identical calls looked efficient. Now: whole-word,
+negation-aware phrases plus forbidden phrases, multiplicity-aware
+counting, type-aware strict arguments. `demos/demo_gaming_blocked.py`
+shows each probe.
+
+**"Can the agent move money?"**
+No. It files a ticket; the ticket tool recomputes the amount and
+re-checks eligibility; only a named human who is neither the agent nor
+the customer can approve, once.

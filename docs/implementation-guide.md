@@ -63,5 +63,16 @@ the trace yourself before trusting either.
 
 The suite is stdlib-only and runs in under a second. Gate on it:
 fail the build if any metric's pass rate drops below its threshold, and
-fail on any regression in the v1-vs-v2 comparison (see
-`test_eval_loop.py` for the assertion pattern).
+fail on any regression in the v1-vs-v2 comparison, per case and not only
+on averages (`improve.case_regressions`). Commit the summary
+(`scripts/eval_summary.py --write`) and run `--check` in CI so the numbers
+in your docs cannot drift from the pipeline.
+
+## 6. Attack your own metrics before trusting them
+
+Before you trust a score, try to get 1.00 with a bad trace: an empty or
+contradictory answer, keyword stuffing, repeated calls, wrong argument
+types, extra arguments. `tests/test_review_fixes.py` and
+`demos/demo_gaming_blocked.py` are the checklist. For any tool that moves
+money or data, make the tool re-validate its own inputs and put the final
+action behind a human review step (`refund_agent/review.py`).

@@ -1,0 +1,17 @@
+[project]
+name = "agent-eval-studio"
+version = "0.1.0"
+description = "Agent evaluation studio: trace capture, 7 offline metrics, behaviour cases and a measured improvement loop"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "B"]
+ignore = ["E741", "B905"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

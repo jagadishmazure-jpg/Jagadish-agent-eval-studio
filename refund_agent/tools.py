@@ -11,6 +11,8 @@ Design notes (these matter for the evaluation):
   knowledge/04-improvement-loop.md).
 """
 
+import hashlib
+
 from . import data
 
 
@@ -85,19 +87,48 @@ def calculate_refund(username, items):
             "total": round(total, 2), "lines": lines, "skipped": skipped}
 
 
-def process_return_request(username, items, amount):
+def process_return_request(username, items, amount, queue=None):
     """Issue a refund ticket for a human team to action.
 
-    This is intentionally NOT a payout: it creates a ticket that a human
-    reviewer approves before any money moves. Returns the ticket record.
+    This is intentionally NOT a payout: it files a ticket in the review
+    queue (refund_agent/review.py), and only a named human reviewer can
+    authorise the payout there. The agent has no approve call.
+
+    The tool does not trust its arguments: it re-checks the customer and
+    every item against the policy and recomputes the amount, so a ticket
+    can never carry an unknown user, an ineligible item or a made-up total
+    (earlier, ``process_return_request("u-1003", ["running sneakers"],
+    9999)`` returned "ticket_issued"). A refused request returns
+    ``{"status": "rejected", "reason": ...}``.
     """
-    import hashlib
-    digest = hashlib.md5(
-        ("%s|%s" % (username, ",".join(items))).encode()).hexdigest()
-    ticket_id = "tkt-%s-%s" % (username.replace("u-", ""), digest[:5])
-    return {"status": "ticket_issued", "ticket_id": ticket_id,
-            "username": username, "items": list(items),
-            "amount": round(float(amount), 2),
+    from .review import DEFAULT_QUEUE
+    queue = DEFAULT_QUEUE if queue is None else queue
+    items = list(items or [])
+    if not items:
+        return {"status": "rejected", "reason": "no_items"}
+    user = data.get_user(username)
+    if user is None:
+        return {"status": "rejected", "reason": "user_not_found",
+                "username": username}
+    elig = check_refund_eligibility(username, items)
+    ineligible = [r["item"] for r in elig["results"] if not r["eligible"]]
+    if ineligible:
+        return {"status": "rejected", "reason": "ineligible_items",
+                "items": ineligible}
+    expected = calculate_refund(username, items)["total"]
+    if isinstance(amount, bool) or not isinstance(amount, (int, float)) \
+            or round(float(amount), 2) != expected:
+        return {"status": "rejected", "reason": "amount_mismatch",
+                "expected": expected, "got": amount}
+    # Deterministic id (same request -> same ticket), over a SHA-256 of the
+    # user, the sorted items and the amount.
+    digest = hashlib.sha256(("%s|%s|%.2f" % (
+        username, ",".join(sorted(items)), expected)).encode()).hexdigest()
+    ticket_id = "tkt-%s-%s" % (username.replace("u-", ""), digest[:10])
+    ticket = queue.submit(ticket_id, username, items, expected)
+    return {"status": "ticket_issued", "ticket_id": ticket["ticket_id"],
+            "username": username, "items": list(ticket["items"]),
+            "amount": ticket["amount"],
             "next_step": "human_review_before_payout"}
 
 

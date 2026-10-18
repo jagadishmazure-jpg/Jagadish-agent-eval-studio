@@ -1,0 +1,67 @@
+{
+  "case_regressions": [],
+  "cases": 10,
+  "improved_metrics": [
+    "task_completion",
+    "step_efficiency",
+    "tool_correctness",
+    "answer_correctness"
+  ],
+  "metrics": {
+    "answer_correctness": {
+      "delta": 0.1,
+      "v1_average": 0.9,
+      "v1_pass_rate": 0.9,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    },
+    "argument_correctness": {
+      "delta": 0.0,
+      "v1_average": 1.0,
+      "v1_pass_rate": 1.0,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    },
+    "plan_adherence": {
+      "delta": 0.0,
+      "v1_average": 1.0,
+      "v1_pass_rate": 1.0,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    },
+    "plan_quality": {
+      "delta": 0.0,
+      "v1_average": 1.0,
+      "v1_pass_rate": 1.0,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    },
+    "step_efficiency": {
+      "delta": 0.1467,
+      "v1_average": 0.8533,
+      "v1_pass_rate": 0.8,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    },
+    "task_completion": {
+      "delta": 0.1,
+      "v1_average": 0.9,
+      "v1_pass_rate": 0.9,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    },
+    "tool_correctness": {
+      "delta": 0.0844,
+      "v1_average": 0.9156,
+      "v1_pass_rate": 1.0,
+      "v2_average": 1.0,
+      "v2_pass_rate": 1.0
+    }
+  },
+  "regressed_metrics": [],
+  "v1_patterns": [
+    "unnecessary-date-lookup",
+    "unknown-user-messaging"
+  ],
+  "v2_patterns": []
+}

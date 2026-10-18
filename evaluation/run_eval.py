@@ -6,9 +6,10 @@ per metric. Deterministic: the same code always yields the same report.
 
 from dataclasses import dataclass, field
 
+from refund_agent.agent import RefundAgent
+
 from . import metrics
 from .dataset import get_cases
-from refund_agent.agent import RefundAgent
 
 
 @dataclass

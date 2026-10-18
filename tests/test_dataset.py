@@ -1,9 +1,11 @@
 """Tests for the behaviour-case dataset."""
 
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from evaluation.dataset import get_cases, BehaviorCase
+from evaluation.dataset import get_cases
 
 KNOWN_TOOLS = {"get_order_details", "check_refund_eligibility",
                "calculate_refund", "process_return_request", "get_today"}

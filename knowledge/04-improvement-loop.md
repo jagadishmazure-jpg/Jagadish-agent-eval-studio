@@ -47,8 +47,10 @@ cycle on two real, measured flaws.
 | argument_correctness | 1.00 | 1.00 | +0.00 |
 | answer_correctness | 0.90 | 1.00 | +0.10 |
 
-No regressions: every delta is ≥ 0. The `improved_metrics` /
-`regressed_metrics` helpers in `improve.py` assert this in tests.
+No regressions: every delta is ≥ 0, and `case_regressions` confirms no
+single case got worse on any metric (averages alone can hide a case that
+regressed). `scripts/eval_summary.py --check` compares a fresh run with
+the committed `results/eval_summary.json` in CI.
 
 ## The interview story
 

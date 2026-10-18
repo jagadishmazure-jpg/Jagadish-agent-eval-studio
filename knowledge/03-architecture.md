@@ -49,8 +49,8 @@ flowchart TB
   structured response) so the eval harness ports directly.
 - **Behaviour cases, not just Q&A.** Expected tools and arguments are
   first-class: they are what let trajectory metrics say anything.
-- **Money never moves.** `process_return_request` issues a ticket for
-  human review. This is a safety property with a test, not just a doc
-  claim.
+- **Money never moves.** `process_return_request` re-validates its inputs
+  and files a ticket in `review.py`, where only a named human (not the
+  agent, not the customer) can approve it, once. Tests cover each rule.
 - **Heuristics first, LLM judges as an option.** Deterministic scorers
   run in CI for free; `judge` callables are the seam for LLM grading.

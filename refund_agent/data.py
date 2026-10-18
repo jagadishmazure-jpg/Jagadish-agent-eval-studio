@@ -15,7 +15,7 @@ TODAY = "2026-10-18"
 REFUND_WINDOW_DAYS = 30
 
 # Fictional storefront. Not a real business.
-STORE_NAME = "Northstar Outfitters (fictional demo store)"
+STORE_NAME = "Varnholt Trail Supply (fictional demo store)"
 
 # Fictional customers with purchase histories.
 # Dates are ISO strings; prices are USD floats.

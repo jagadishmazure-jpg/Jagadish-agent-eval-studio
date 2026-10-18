@@ -4,11 +4,13 @@
 Usage: python3 demos/demo_run.py [--html out.html]
 Everything is offline and deterministic.
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from evaluation import improve
-from evaluation.report import build_markdown, build_html
+from evaluation.report import build_html, build_markdown
 
 cmp = improve.compare_versions()
 results = cmp["v2_results"]

@@ -47,3 +47,24 @@ def regressed_metrics(comparison_result, min_delta=0.05):
     """Metric names where v2 is worse than v1 by at least min_delta."""
     return [name for name, c in comparison_result["comparison"].items()
             if c["delta"] <= -min_delta]
+
+
+def case_regressions(comparison_result, tolerance=1e-9):
+    """(case_id, metric, v1_score, v2_score) for every case where v2 scored
+    lower than v1 on any metric.
+
+    ``regressed_metrics`` compares averages with a 0.05 tolerance, so one
+    case getting worse while another improves (or any drop under 0.05) was
+    invisible. "Zero regressions" is claimed only when this list is empty.
+    """
+    v1 = {r.case_id: r for r in comparison_result["v1_results"]}
+    out = []
+    for r2 in comparison_result["v2_results"]:
+        r1 = v1.get(r2.case_id)
+        if r1 is None:
+            continue
+        for name, m2 in r2.metric_results.items():
+            s1 = r1.metric_results[name].score
+            if m2.score < s1 - tolerance:
+                out.append((r2.case_id, name, s1, m2.score))
+    return out

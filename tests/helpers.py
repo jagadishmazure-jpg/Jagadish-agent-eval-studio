@@ -1,6 +1,8 @@
 """Shared helpers for metric unit tests: build fake agent responses."""
 
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from refund_agent.agent import AgentResponse

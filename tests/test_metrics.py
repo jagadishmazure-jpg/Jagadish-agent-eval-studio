@@ -1,10 +1,13 @@
 """Unit tests for the seven metrics: pass, fail and edge cases."""
 
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from helpers import make_response, make_case
+from helpers import make_case, make_response
+
 from evaluation import metrics
 
 
@@ -103,7 +106,7 @@ def test_plan_adherence_single_tool_trivial():
 # -- plan_quality ---------------------------------------------------------
 def test_plan_quality_effective_plan():
     r = make_response("ticket tkt-1 for $45.00", _refund_tools())
-    c = make_case(expected_tools=("get_order_details",))
+    c = make_case(expected_tools=tuple(t for t, _ in _refund_tools()))
     assert metrics.plan_quality(r, c).passed
 
 

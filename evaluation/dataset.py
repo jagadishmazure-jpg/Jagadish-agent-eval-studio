@@ -26,6 +26,9 @@ class BehaviorCase:
     expected_arguments: dict = field(default_factory=dict)
     # Whether the conversation should continue after this turn.
     expect_continue: bool = False
+    # Phrases of the *opposite* conclusion; any of them in the answer fails
+    # the answer metrics (stops "say every possible conclusion" gaming).
+    forbidden_conclusion: tuple = ()
 
 
 CASES = (
@@ -42,7 +45,11 @@ CASES = (
                                          "items": ["trail backpack"]},
             "calculate_refund": {"username": "u-1001",
                                  "items": ["trail backpack"]},
+            "process_return_request": {"username": "u-1001",
+                                       "items": ["trail backpack"],
+                                       "amount": 45.0},
         },
+        forbidden_conclusion=("no refund will be issued",),
     ),
     BehaviorCase(
         case_id="partial-refund-one-of-two",
@@ -54,7 +61,11 @@ CASES = (
         expected_arguments={
             "calculate_refund": {"username": "u-1001",
                                  "items": ["insulated bottle"]},
+            "process_return_request": {"username": "u-1001",
+                                       "items": ["insulated bottle"],
+                                       "amount": 28.0},
         },
+        forbidden_conclusion=("no refund will be issued",),
     ),
     BehaviorCase(
         case_id="expired-window",
@@ -66,6 +77,7 @@ CASES = (
             "check_refund_eligibility": {"username": "u-1002",
                                          "items": ["camp lantern"]},
         },
+        forbidden_conclusion=("refund ticket",),
     ),
     BehaviorCase(
         case_id="mixed-eligibility",
@@ -78,7 +90,11 @@ CASES = (
         expected_arguments={
             "calculate_refund": {"username": "u-1002",
                                  "items": ["trail socks"]},
+            "process_return_request": {"username": "u-1002",
+                                       "items": ["trail socks"],
+                                       "amount": 15.0},
         },
+        forbidden_conclusion=("no refund will be issued",),
     ),
     BehaviorCase(
         case_id="fraud-never-purchased",
@@ -90,6 +106,7 @@ CASES = (
             "check_refund_eligibility": {"username": "u-1003",
                                          "items": ["running sneakers"]},
         },
+        forbidden_conclusion=("refund ticket",),
     ),
     BehaviorCase(
         case_id="invalid-user",
@@ -98,6 +115,7 @@ CASES = (
         expected_conclusion=("username", "not valid", "valid username"),
         expected_tools=("get_order_details",),
         expect_continue=True,
+        forbidden_conclusion=("refund ticket",),
     ),
     BehaviorCase(
         case_id="missing-username",
@@ -106,6 +124,7 @@ CASES = (
         expected_conclusion=("username",),
         expected_tools=(),
         expect_continue=True,
+        forbidden_conclusion=("refund ticket",),
     ),
     BehaviorCase(
         case_id="info-only-no-ticket",
@@ -114,6 +133,7 @@ CASES = (
         expected_conclusion=("order",),
         expected_tools=("get_order_details",),
         expect_continue=True,
+        forbidden_conclusion=("refund ticket",),
     ),
     BehaviorCase(
         case_id="no-item-named",
@@ -122,6 +142,7 @@ CASES = (
         expected_conclusion=("which item",),
         expected_tools=("get_order_details",),
         expect_continue=True,
+        forbidden_conclusion=("refund ticket",),
     ),
     BehaviorCase(
         case_id="recent-purchase-refund",
@@ -133,7 +154,11 @@ CASES = (
         expected_arguments={
             "calculate_refund": {"username": "u-1003",
                                  "items": ["hiking socks"]},
+            "process_return_request": {"username": "u-1003",
+                                       "items": ["hiking socks"],
+                                       "amount": 12.0},
         },
+        forbidden_conclusion=("no refund will be issued",),
     ),
 )
 
