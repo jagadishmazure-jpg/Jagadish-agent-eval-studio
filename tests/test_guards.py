@@ -12,8 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from evaluation.guards import (GuardedRefundAgent, InputGuard, OutputGuard,
-                               ToolCallGuard)
+from evaluation.guards import GuardedRefundAgent, InputGuard, OutputGuard, ToolCallGuard
 from refund_agent import tools
 from refund_agent.agent import AgentResponse
 from refund_agent.review import ReviewQueue
