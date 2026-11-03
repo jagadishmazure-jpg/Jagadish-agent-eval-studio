@@ -299,7 +299,7 @@ Fresh clone at `10fe9ca`: 87 tests and 33 files, as claimed. The v1 → v2 numbe
 10. **The brand check had an empty blocklist** (it could never fail). Replaced with the standard hashed check, plus its tests.
 11. **The store name** matched real businesses; renamed to the fictional "Varnholt Trail Supply".
 
-Also added: pyproject (ruff and pytest config), SHA-pinned CI, CodeQL, Dependabot, the docs drift check, the eval artifact check, a threat model and ADRs. An 8-word overlap check against the public agent-metric docs and guides this repo learned from, and the transcript of the related video that could be found, found 0 shared runs.
+Also added: pyproject (ruff and pytest config), SHA-pinned CI, CodeQL, Dependabot, the docs drift check, the eval artifact check, a threat model and ADRs.
 
 ## License
 
