@@ -1,7 +1,7 @@
 [project]
 name = "agent-eval-studio"
 version = "0.1.0"
-description = "Agent evaluation studio: trace capture, 7 offline metrics, behaviour cases and a measured improvement loop"
+description = "Agent evaluation studio: trace capture, 7 offline metrics, behaviour cases, a measured improvement loop, and a continuous-improvement gate"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 

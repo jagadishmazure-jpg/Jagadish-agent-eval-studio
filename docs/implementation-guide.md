@@ -76,3 +76,12 @@ types, extra arguments. `tests/test_review_fixes.py` and
 `demos/demo_gaming_blocked.py` are the checklist. For any tool that moves
 money or data, make the tool re-validate its own inputs and put the final
 action behind a human review step (`refund_agent/review.py`).
+
+## 7. Repeat on traces and feedback
+
+`evaluation/continuous.py` is the same loop one step further on: freeze
+the harness run as a baseline, cluster synthetic traces and feedback,
+propose prompt, tool, and config changes, and refuse promotion when a
+metric or a single case regresses past the threshold. `run_loop` does
+not promote unless `apply=True` and the gate passed. See
+`docs/continuous-improvement.md`.

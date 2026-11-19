@@ -58,3 +58,11 @@ the committed `results/eval_summary.json` in CI.
 happy-path tests missed — wrong error messaging and a wasted tool call
 — fixed them, and proved the improvement with before/after numbers and
 zero regressions." That sentence is the whole point of the repo.
+
+## A second loop: traces and feedback
+
+`evaluation/continuous.py` runs the same prove-before-promote idea on
+synthetic production traces and feedback: cluster the problems, propose
+prompt, tool, and config changes, and block promotion when a candidate
+misses the regression gate. See
+[docs/continuous-improvement.md](../docs/continuous-improvement.md).
