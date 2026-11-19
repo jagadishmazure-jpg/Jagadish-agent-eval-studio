@@ -956,12 +956,15 @@ def _fmt_delta(value):
 def build_report(result):
     """Markdown report for one pass: baseline, clusters, candidates, gate."""
     baseline = result.baseline
+    intro = (
+        "Offline mock. One pass of establish, identify, optimize, and "
+        "validate. Product-specific claims about the hosted loop are "
+        "marked [verify] in docs/continuous-improvement.md."
+    )
     lines = [
         "# Continuous improvement report",
         "",
-        "Offline mock. One pass of establish, identify, optimize, and "
-        "validate. Product-specific claims about the hosted loop are "
-        "marked [verify] in docs/continuous-improvement.md.",
+        intro,
         "",
         "## Establish",
         "",
@@ -1010,12 +1013,15 @@ def build_report(result):
             "- Instruction: %s" % candidate.instruction,
             "",
         ])
+    gate_note = (
+        "Regression limit: %.3f. Minimum targeted gain for prompt and tool "
+        "changes: %.3f. Config changes must hold quality and reduce tokens "
+        "or latency." % (result.regression_threshold, result.min_improvement)
+    )
     lines.extend([
         "## Validate",
         "",
-        "Regression limit: %.3f. Minimum targeted gain for prompt and tool "
-        "changes: %.3f. Config changes must hold quality and reduce tokens "
-        "or latency." % (result.regression_threshold, result.min_improvement),
+        gate_note,
         "",
         "| Candidate | Kind | Gate | Quality | Latency ms | Tokens |",
         "| --- | --- | --- | --- | --- | --- |",
@@ -1079,12 +1085,15 @@ def _cluster_lines(cluster):
 def render_summary(result):
     """Short text summary. The README renders this and CI checks it."""
     baseline = result.baseline
-    lines = [
-        "continuous improvement (offline mock)",
+    baseline_line = (
         "baseline: %s | cases: %d | traces: %d | feedback: %d | "
         "latency_ms: %.2f | tokens: %.2f" % (
             baseline.version, len(baseline.golden_case_ids), baseline.trace_count,
-            baseline.feedback_count, baseline.mean_latency_ms, baseline.mean_tokens),
+            baseline.feedback_count, baseline.mean_latency_ms, baseline.mean_tokens)
+    )
+    lines = [
+        "continuous improvement (offline mock)",
+        baseline_line,
     ]
     if result.findings.clusters:
         lines.append("clusters: " + ", ".join(
