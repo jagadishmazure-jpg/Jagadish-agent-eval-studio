@@ -9,3 +9,4 @@ into fixes, and how the guardrail layer is built and measured.
 - [03 — Architecture](03-architecture.md)
 - [04 — The improvement loop](04-improvement-loop.md)
 - [05 — Guardrails](05-guardrails.md)
+- [Continuous improvement](../docs/continuous-improvement.md): baseline, cluster, optimize, validate

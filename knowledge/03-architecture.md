@@ -40,6 +40,10 @@ flowchart TB
 4. `improve.py` runs both agent versions and computes per-metric deltas,
    proving fixes helped and nothing regressed.
 5. `report.py` renders the Markdown and HTML dashboards.
+6. `continuous.py` repeats the loop on synthetic traces and feedback:
+   baseline, cluster, prompt/tool/config candidates, and a regression
+   gate before promotion. See
+   [docs/continuous-improvement.md](../docs/continuous-improvement.md).
 
 ## Key design decisions
 
